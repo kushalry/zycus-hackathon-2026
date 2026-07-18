@@ -166,3 +166,50 @@ via Spring Cloud's @RefreshScope on RoutingService, or by exposing a
 POST /admin/routing/strategy endpoint that mutates activeStrategyName. 
 Neither adds complexity to strategy implementations — the design point 
 holds.
+
+## ADR-007: LLM Resilience — Fallback Chain and Validation
+
+**Context:** T-3 requires explicit handling of LLM failure modes:
+- Timeouts / network errors / 503s
+- Malformed JSON responses (LLM ignores JSON schema instruction)
+- Hallucinated agent IDs (LLM invents an ID not in the database)
+
+A silent drop in the async re-plan path (T-4) would be worse than a 
+rule-based suggestion.
+
+**Options considered:**
+1. Throw exceptions upward, let caller decide
+2. Return Optional<AgentRecommendation> and let RoutingService orchestrate 
+   fallback
+3. AiRoutingStrategy handles fallback internally, always returns a 
+   non-empty list when agents are available
+
+**Decision:** Option 3. AiRoutingStrategy owns the full resilience chain 
+and delegates to RuleBasedRoutingStrategy on any failure. This keeps 
+callers (HTTP endpoint AND async event handler in T-4) simple — they 
+always get a usable recommendation when agents exist.
+
+Failure modes handled:
+- **LLM call fails (network, timeout, 503):** catch exception, log WARN, 
+  fall back to rule-based
+- **Response unparseable:** LLMResponseParser strips markdown fences, 
+  extracts JSON substring, returns Optional.empty() on any parse failure. 
+  AiRoutingStrategy falls back to rule-based.
+- **Hallucinated agent ID (not in DB):** existsById() check, log WARN, 
+  fall back to rule-based.
+- **LLM picked ineligible agent (e.g., BUSY when only AVAILABLE agents 
+  were provided):** check against the availableAgents list, log WARN, 
+  fall back to rule-based.
+
+**Consequences:**
+- AiRoutingStrategy becomes the resilience boundary; callers don't need to 
+  handle LLM failures
+- Every fallback is logged, so ops can see LLM health via log volume
+- The rule-based suggestion is always available if agents exist — no 
+  silent drops
+- Testing: can force each failure mode by breaking config (base-url), 
+  malforming a mock response, or seeding an unknown agent ID
+
+**Would revisit if:** we need per-failure-mode retry policies, circuit 
+breakers to stop hammering a dead LLM, or observability metrics beyond 
+logs.
