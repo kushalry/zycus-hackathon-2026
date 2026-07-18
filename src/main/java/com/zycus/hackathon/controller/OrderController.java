@@ -1,8 +1,15 @@
 package com.zycus.hackathon.controller;
 
 import com.zycus.hackathon.dto.CreateOrderRequest;
+import com.zycus.hackathon.entity.Agent;
 import com.zycus.hackathon.entity.Order;
+import com.zycus.hackathon.entity.ReassignmentSuggestion;
+import com.zycus.hackathon.routing.AgentRecommendation;
+import com.zycus.hackathon.routing.RoutingContext;
+import com.zycus.hackathon.service.AgentService;
 import com.zycus.hackathon.service.OrderService;
+import com.zycus.hackathon.service.RoutingService;
+import com.zycus.hackathon.service.SuggestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -25,6 +33,9 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final AgentService agentService;
+    private final RoutingService routingService;
+    private final SuggestionService suggestionService;
 
     @PostMapping
     public ResponseEntity<Order> createOrder(@Valid @RequestBody CreateOrderRequest request) {
@@ -41,5 +52,32 @@ public class OrderController {
     @GetMapping("/{id}")
     public Order getOrder(@PathVariable String id) {
         return orderService.getOrder(id);
+    }
+
+    @PostMapping("/{id}/suggest")
+    public ResponseEntity<ReassignmentSuggestion> suggest(@PathVariable String id) {
+        Order order = orderService.getOrder(id);
+        List<Agent> availableAgents = agentService.getAvailableAgents();
+
+        RoutingContext context = new RoutingContext(ReassignmentSuggestion.TriggerReason.INITIAL, null);
+        List<AgentRecommendation> recommendations = routingService.recommend(order, availableAgents, context);
+
+        if (recommendations.isEmpty()) {
+            throw new IllegalArgumentException("No agents available for routing");
+        }
+
+        AgentRecommendation topPick = recommendations.get(0);
+
+        ReassignmentSuggestion suggestion = new ReassignmentSuggestion();
+        suggestion.setOrderId(order.getId());
+        suggestion.setRecommendedAgentId(topPick.agentId());
+        suggestion.setConfidence(topPick.confidence());
+        suggestion.setReasoning(topPick.reasoning());
+        suggestion.setStatus(ReassignmentSuggestion.Status.PENDING);
+        suggestion.setTriggerReason(ReassignmentSuggestion.TriggerReason.INITIAL);
+        suggestion.setCreatedAt(Instant.now());
+
+        ReassignmentSuggestion saved = suggestionService.createSuggestion(suggestion);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }

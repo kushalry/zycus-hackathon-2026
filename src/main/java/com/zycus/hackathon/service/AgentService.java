@@ -23,6 +23,11 @@ public class AgentService {
     }
 
     @Transactional(readOnly = true)
+    public List<Agent> getAvailableAgents() {
+        return agentRepository.findByStatus(Agent.Status.AVAILABLE);
+    }
+
+    @Transactional(readOnly = true)
     public Agent getAgent(String id) {
         return agentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Agent not found: " + id));

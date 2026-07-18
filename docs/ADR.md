@@ -122,3 +122,39 @@ validation-style errors.
 **Would revisit if:** we needed richer problem-details format (RFC 7807 
 ProblemDetail), which Spring Boot 3 supports natively — worth an 
 upgrade path.
+
+## ADR-006: Routing Engine — Strategy Pattern with Bean Registry
+
+**Context:** T-2 requires a routing engine that (a) supports multiple 
+strategies today (rule-based + AI), (b) allows runtime switching via config, 
+and (c) can accept new strategies (Sprint 2's ZoneAffinityStrategy) without 
+touching existing code.
+
+**Options considered:**
+1. If/else in a single service — simplest, but violates open/closed and 
+   creates a design smell
+2. Manual factory — explicit control but requires editing on each new strategy
+3. Spring @Qualifier per injection point — fragile, verbose
+4. Strategy interface + auto-wired Map<String, RoutingStrategy> keyed by 
+   named bean — extensibility without touching existing code
+
+**Decision:** Option 4. RoutingStrategy interface with two @Component 
+implementations (bean name = strategy name via @Component('rule-based') and 
+@Component('ai')). RoutingService injects Map<String, RoutingStrategy> — 
+Spring populates it automatically with every RoutingStrategy bean. Active 
+strategy chosen via routing.strategy config property.
+
+**Consequences:**
+- Adding ZoneAffinityStrategy = create one @Component('zone-affinity') class 
+  implementing RoutingStrategy. Zero changes to RoutingService, RoutingContext, 
+  or any existing strategy.
+- Runtime switching = change routing.strategy value + restart (Spring Boot 
+  config refresh could make this hot-swap without restart in later sprint)
+- Both HTTP endpoint and async event handler go through the same RoutingService 
+  — no strategy duplication between call sites
+- Fallback path exists: if the configured strategy fails or isn't found, 
+  log ERROR and fall back to rule-based
+
+**Would revisit if:** we needed strategies that share complex state (currently 
+each is stateless), or if we needed strategy composition (e.g., filter chain 
+patterns).

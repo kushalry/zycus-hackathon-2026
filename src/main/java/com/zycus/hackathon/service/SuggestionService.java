@@ -25,6 +25,11 @@ public class SuggestionService {
         return reassignmentSuggestionRepository.findByStatus(status);
     }
 
+    @Transactional
+    public ReassignmentSuggestion createSuggestion(ReassignmentSuggestion suggestion) {
+        return reassignmentSuggestionRepository.save(suggestion);
+    }
+
     @Transactional(readOnly = true)
     public ReassignmentSuggestion getSuggestion(Long id) {
         return reassignmentSuggestionRepository.findById(id)
