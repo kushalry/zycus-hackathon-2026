@@ -266,3 +266,46 @@ orders are logged as WARN so ops can see them.
 **Would revisit if:** we need durable event delivery guarantees 
 (currently events are in-JVM only — a JVM restart mid-processing 
 loses in-flight events). Kafka or an outbox pattern would harden this.
+
+## ADR-009: UI Framework — React 18 with Vite
+
+**Context:** T-5 requires an ops interface built in React 18 or Angular 17. 
+The candidate's production experience is Flutter (Dart) for mobile with 
+some foundational HTML/CSS/JavaScript from a 2022 internship, no recent 
+React or Angular production work.
+
+**Options considered:**
+1. React 18 with Vite — mental model closest to Flutter widgets, largest 
+   ecosystem, fastest scaffolding, Cursor Agent Mode support strong
+2. Angular 17 with standalone components — more opinionated framework, 
+   TypeScript-heavy, standalone API is a meaningful shift from older Angular
+3. Server-rendered Thymeleaf UI — simpler but goes against brief's 
+   React/Angular constraint
+
+**Decision:** Option 1 — React 18 with Vite. Native fetch API for HTTP, 
+useState + useEffect for state and polling. Single-file App.jsx for 
+simplicity in a 5-hour build. Inline styles (no external UI library) 
+to keep the surface area small.
+
+**Consequences:**
+- Fast scaffold (5 min from `npm create vite` to running dev server)
+- Component mental model maps to Flutter widgets I know well
+- 5-second polling implemented via useEffect with setInterval
+- No TypeScript — trade type safety for velocity in a 5-hour build
+- Inline styles trade design system polish for simplicity — "usable, 
+  not beautiful" is exactly what the brief asked for
+
+**Scope call — ceiling skipped:** The full dispatch board, SLA countdown 
+colour coding, agent load bars, and zone roster were consciously left 
+unbuilt. The brief itself says "a clean functional floor beats an 
+ambitious ceiling that cost you something in the backend." I prioritized 
+routing engine quality (T-2), AI resilience (T-3), and the async 
+agentic loop (T-4) over UI depth. The floor requirements — reassignment 
+list with inline AI reasoning, Accept/Reject controls, orange re-plan 
+badge, agent status pills, 5-second polling, loading and error states — 
+are all present and verified working end-to-end.
+
+**Would revisit if:** ops teams needed a mission-control view of all 
+active orders + SLA countdown for a real deployment. The dispatch-board 
+extension is a straightforward add — same fetch pattern, richer table 
+component.
