@@ -213,3 +213,12 @@ Failure modes handled:
 **Would revisit if:** we need per-failure-mode retry policies, circuit 
 breakers to stop hammering a dead LLM, or observability metrics beyond 
 logs.
+
+### Critical-path note:
+The synchronous /suggest endpoint blocks on the LLM (2-5 sec typical). 
+The client explicitly requested the routing decision, so this is 
+acceptable UX. The critical-path constraint from the brief applies to 
+the agentic loop (T-4), where PATCH /agents/status returns immediately 
+and re-planning happens on an async thread pool. LLM slowness there 
+cannot degrade user-facing operations because the endpoint has already 
+returned 200 by the time re-planning starts.
