@@ -158,3 +158,11 @@ strategy chosen via routing.strategy config property.
 **Would revisit if:** we needed strategies that share complex state (currently 
 each is stateless), or if we needed strategy composition (e.g., filter chain 
 patterns).
+
+**Hot-swap consideration:**  
+Runtime switching via config in this build requires a restart because 
+@Value is resolved at startup. True zero-restart hot-swap could be added 
+via Spring Cloud's @RefreshScope on RoutingService, or by exposing a 
+POST /admin/routing/strategy endpoint that mutates activeStrategyName. 
+Neither adds complexity to strategy implementations — the design point 
+holds.
