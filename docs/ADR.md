@@ -222,3 +222,47 @@ the agentic loop (T-4), where PATCH /agents/status returns immediately
 and re-planning happens on an async thread pool. LLM slowness there 
 cannot degrade user-facing operations because the endpoint has already 
 returned 200 by the time re-planning starts.
+
+## ADR-008: Agentic Loop — Async Event-Driven Re-planning
+
+**Context:** T-4 requires that PATCH /agents/{id}/status returns 
+immediately while re-planning happens autonomously in the background. 
+Additionally, the same agent flipping OFFLINE twice quickly must not 
+create duplicate suggestions (idempotency).
+
+**Options considered:**
+1. Synchronous re-planning inside the PATCH handler — simple but 
+   violates the "off request path" constraint
+2. Scheduled poller checking for OFFLINE agents every N seconds — 
+   would fire because a timer ticked, not because state changed
+3. Spring's ApplicationEventPublisher + @EventListener + @Async — 
+   fires because state changed, decoupled from HTTP, uses a dedicated 
+   thread pool
+
+**Decision:** Option 3. AgentService publishes AgentWentOfflineEvent 
+after the status update commits. AgentOfflineEventHandler listens 
+@Async on a dedicated ThreadPoolTaskExecutor (4 core, 8 max, 50 queue). 
+The HTTP endpoint returns in ~50ms; async processing takes 3-10 sec 
+depending on LLM response time.
+
+**Idempotency:** Before creating a new AGENT_OFFLINE suggestion for an 
+order, check `existsByOrderIdAndTriggerReasonAndStatus`. If a PENDING 
+AGENT_OFFLINE suggestion already exists, skip. This handles the 
+"same agent flipping offline twice" case cleanly at the database level.
+
+**Failure handling:** If routing fails during async re-plan (LLM down + 
+rule-based somehow throws), we log ERROR but do not crash the handler 
+— the next event triggers a fresh attempt. Silent drops of individual 
+orders are logged as WARN so ops can see them.
+
+**Consequences:**
+- PATCH endpoint response time is bounded (no LLM in the request path)
+- Duplicate PATCH calls have no duplicative effect (idempotency)
+- Adding a new trigger (SLA breach in Sprint 3) means firing a new 
+  event type — the handler pattern is reusable
+- Failure of async re-planning doesn't affect the HTTP call that 
+  triggered it, but IS surfaced via logs for observability
+
+**Would revisit if:** we need durable event delivery guarantees 
+(currently events are in-JVM only — a JVM restart mid-processing 
+loses in-flight events). Kafka or an outbox pattern would harden this.
