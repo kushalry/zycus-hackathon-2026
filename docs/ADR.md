@@ -67,3 +67,58 @@ found" on seed execution.
 
 **Would revisit if:** switching to a persistence layer that doesn't 
 respect JPA @Table annotations, or if seed script is regenerated.
+
+## ADR-004: Service Layer Pattern
+
+**Context:** Controllers were initially calling JPA repositories directly. 
+As the routing engine, LLM integration, event publishing, and idempotency 
+logic are added, this would concentrate too many concerns in the 
+controller layer — a well-known design smell.
+
+**Options considered:**
+1. Keep repositories in controllers — simplest, but doesn't scale as 
+   business logic grows
+2. Rich domain model — put behavior on entity classes
+3. Service Layer — dedicated services for business logic, transactional 
+   boundaries, orchestration
+
+**Decision:** Option 3. Introduced OrderService and AgentService. Controllers 
+become thin — only HTTP parsing, validation, status code selection. Services 
+own business logic and @Transactional boundaries.
+
+**Consequences:**
+- Routing logic (T-2) will live in a dedicated RoutingService, called from 
+  services — not from controllers
+- Async event publishing (T-4) will fire from AgentService, keeping the 
+  controller off the request-path complexity
+- Explicit transactional boundaries at service methods, not accidentally 
+  at HTTP layer
+- Slight verbosity cost for clear separation of concerns
+
+**Would revisit if:** the application stays trivially CRUD forever — but 
+given routing, LLM, and agentic loop coming, this pattern earns its keep.
+
+## ADR-005: HTTP Error Semantics
+
+**Context:** Initial exception handling conflated "resource not found" 
+with "invalid input" by using IllegalArgumentException for both. Both 
+returned 400, which is semantically wrong for missing resources.
+
+**Options considered:**
+1. Special-case each not-found endpoint in the controller
+2. Return 400 for everything — simplest but incorrect REST semantics
+3. Introduce a NotFoundException hierarchy with dedicated handler
+
+**Decision:** Option 3. Added NotFoundException that maps to 404 via 
+GlobalExceptionHandler. IllegalArgumentException stays at 400 for 
+validation-style errors.
+
+**Consequences:**
+- Correct REST semantics — clients can distinguish missing vs malformed
+- One-line exception addition when a new not-found path emerges
+- Scaling to more error categories (Conflict, Forbidden) follows the 
+  same pattern
+
+**Would revisit if:** we needed richer problem-details format (RFC 7807 
+ProblemDetail), which Spring Boot 3 supports natively — worth an 
+upgrade path.
