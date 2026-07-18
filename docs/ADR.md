@@ -295,15 +295,17 @@ to keep the surface area small.
 - Inline styles trade design system polish for simplicity — "usable, 
   not beautiful" is exactly what the brief asked for
 
-**Scope call — ceiling skipped:** The full dispatch board, SLA countdown 
-colour coding, agent load bars, and zone roster were consciously left 
-unbuilt. The brief itself says "a clean functional floor beats an 
-ambitious ceiling that cost you something in the backend." I prioritized 
-routing engine quality (T-2), AI resilience (T-3), and the async 
-agentic loop (T-4) over UI depth. The floor requirements — reassignment 
-list with inline AI reasoning, Accept/Reject controls, orange re-plan 
-badge, agent status pills, 5-second polling, loading and error states — 
-are all present and verified working end-to-end.
+**Scope call — partial ceiling delivered:**
+Agent load visualization was added as a small ceiling reach — each agent card shows a horizontal capacity bar (assumed capacity 5). Color-coded: green for 0-1 orders, amber for 2-3, red for 4-5. Cost: ~10 minutes. Value: makes agent capacity visible at a glance without adding backend complexity.
+
+The other ceiling items — full dispatch board across all statuses, SLA countdown with color coding, zone-aware roster — were consciously left unbuilt. The brief itself says "a clean functional floor beats an ambitious ceiling that cost you something in the backend." I prioritized routing engine quality (T-2, including hot-swap admin endpoint), AI resilience across all failure modes (T-3), and the async agentic loop with idempotency (T-4) over UI depth.
+
+In a follow-up sprint, extensions are straightforward:
+- Full dispatch board — a new component reusing the existing fetch pattern against GET /orders (already implemented)
+- SLA countdown — needs seed data with slaDeadline populated (nullable field already exists on Order entity), then a JavaScript countdown timer per order card
+- Zone roster — needs zone seeding on agents (nullable field already exists), then grouping in the UI
+
+All three extensions plug into the existing schema. No refactoring required.
 
 **Would revisit if:** ops teams needed a mission-control view of all 
 active orders + SLA countdown for a real deployment. The dispatch-board 
