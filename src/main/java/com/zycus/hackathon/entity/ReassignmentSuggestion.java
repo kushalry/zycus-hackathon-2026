@@ -23,7 +23,7 @@ public class ReassignmentSuggestion {
     @EqualsAndHashCode.Include
     private Long id;
 
-    private Long orderId;
+    private String orderId;
 
     private String recommendedAgentId;
 

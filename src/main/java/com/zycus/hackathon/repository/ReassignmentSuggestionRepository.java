@@ -10,9 +10,9 @@ public interface ReassignmentSuggestionRepository extends JpaRepository<Reassign
     List<ReassignmentSuggestion> findByStatus(ReassignmentSuggestion.Status status);
 
     boolean existsByOrderIdAndTriggerReasonAndStatus(
-            Long orderId,
+            String orderId,
             ReassignmentSuggestion.TriggerReason triggerReason,
             ReassignmentSuggestion.Status status);
 
-    List<ReassignmentSuggestion> findByOrderIdAndStatus(Long orderId, ReassignmentSuggestion.Status status);
+    List<ReassignmentSuggestion> findByOrderIdAndStatus(String orderId, ReassignmentSuggestion.Status status);
 }

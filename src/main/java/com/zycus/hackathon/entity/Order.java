@@ -3,11 +3,10 @@ package com.zycus.hackathon.entity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
@@ -17,9 +16,8 @@ import java.time.Instant;
 public class Order {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
-    private Long id;
+    private String id;
 
     private String assignedAgentId;
 
@@ -31,6 +29,11 @@ public class Order {
     private String weightClass;
 
     private Instant slaDeadline;
+
+    private String description;
+
+    @CreationTimestamp
+    private Instant createdAt;
 
     public enum Status {
         ASSIGNED,
