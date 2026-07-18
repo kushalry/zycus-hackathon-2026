@@ -145,6 +145,20 @@ function AgentCard({ agent, onStatusChange }) {
       <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 10 }}>
         Active orders: <strong style={{ color: '#374151' }}>{agent.activeOrderCount ?? 0}</strong>
       </div>
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+          <span>Load</span>
+          <span>{agent.currentLoad} / 5</span>
+        </div>
+        <div style={{ width: '100%', height: '8px', backgroundColor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{
+            width: `${Math.min((agent.currentLoad / 5) * 100, 100)}%`,
+            height: '100%',
+            backgroundColor: agent.currentLoad <= 1 ? '#22c55e' : agent.currentLoad <= 3 ? '#f59e0b' : '#ef4444',
+            transition: 'width 0.3s ease',
+          }} />
+        </div>
+      </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button
           style={{ ...btnBase, background: '#dcfce7', color: '#15803d', opacity: patching ? 0.6 : 1 }}
