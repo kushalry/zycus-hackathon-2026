@@ -42,3 +42,28 @@ API, fast inference).
 - Explicit failure handling required (which we need anyway)
 
 **Would revisit if:** paid tier gives reliable single-provider SLA.
+
+## ADR-003: JPA Entity to Table Mapping
+
+**Context:** Seed script from Addendum A uses plural table names 
+(agents, orders) and snake_case columns. Hibernate's default naming 
+singularizes class names (Agent → agent), causing "Table AGENTS not 
+found" on seed execution.
+
+**Options considered:**
+1. Rewrite seed to match Hibernate defaults (singular names)
+2. Use @Table and @Column on entities to match seed contract
+3. Configure custom PhysicalNamingStrategy globally to pluralize
+
+**Decision:** Option 2. Added explicit @Table("agents"), @Table("orders"), 
+@Table("reassignment_suggestions"). Snake_case columns kept via 
+@Column for fields like current_load and assigned_agent_id.
+
+**Consequences:**
+- Explicit annotations trade slight verbosity for clarity — no hidden 
+  naming convention magic
+- Seed script from Addendum A stays as provided (contract respected)
+- Any future entity additions must remember @Table (small cost)
+
+**Would revisit if:** switching to a persistence layer that doesn't 
+respect JPA @Table annotations, or if seed script is regenerated.
