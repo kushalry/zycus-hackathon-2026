@@ -311,3 +311,19 @@ All three extensions plug into the existing schema. No refactoring required.
 active orders + SLA countdown for a real deployment. The dispatch-board 
 extension is a straightforward add — same fetch pattern, richer table 
 component.
+
+## ADR-010: Deliberate Exclusions and Follow-up Roadmap
+
+**Context:** In a 5-hour build, some things get consciously deferred. This entry names what and why, to make priority choices explicit rather than implicit.
+
+**Explicit exclusions:**
+
+1. **SSE streaming for LLM responses** (T-3 bonus, +5 pts). Would stream Gemini's reasoning token-by-token via SseEmitter and Gemini's streamGenerateContent endpoint. Cost: ~60 minutes with real risk of parsing chunked JSON envelopes. Deferred because the async agentic loop with idempotency (T-4) and full LLM resilience (T-3) were correctness requirements, and SSE is an enhancement. In a follow-up sprint I'd add POST /orders/{id}/suggest/stream with SseEmitter and React EventSource.
+2. **Full UI ceiling** (T-5, up to +8 pts). Partial ceiling delivered — agent load bars per card. The remaining items — full dispatch board, SLA countdown color coding, zone-aware roster — were consciously left. Rationale: the brief itself says "a clean functional floor beats an ambitious ceiling that cost you something in the backend." Extensions are straightforward: dispatch board reuses the fetch pattern; SLA countdown uses the already-nullable slaDeadline field on Order; zone roster uses the already-nullable zone field on Agent.
+3. **Admin endpoint authentication.** Hot-swap and future admin endpoints are unguarded. In production I would gate them behind Spring Security with role-based access — routing strategy changes are ops-level actions, not open to the world.
+4. **Order state machine enforcement.** SuggestionService enforces PENDING → ACCEPTED or REJECTED. Order status transitions are currently direct writes in AgentOfflineEventHandler. In a follow-up I would centralize order transitions in OrderService with the same validation pattern — reject invalid transitions like DELIVERED → ASSIGNED.
+5. **Durable event delivery.** ApplicationEventPublisher is in-JVM. A JVM restart mid-processing loses in-flight events. Kafka or an outbox pattern would harden this for production.
+
+**Decision framework applied:** For each deferred item, I asked "is this a correctness requirement or an enhancement?" Enhancements got deferred. Correctness requirements (idempotency, fallback chain, event decoupling) were built end-to-end.
+
+**Would revisit any of these if:** the system needed to scale beyond ops-team internal usage (auth); handle 100s of concurrent agent events (Kafka); or if walkthrough scoring showed the UI ceiling was more valuable than the design depth I chose to invest in.
